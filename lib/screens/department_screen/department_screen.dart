@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:tsec_app/utils/department_enum.dart';
 
 import '../../utils/themes.dart';
 import '../../widgets/custom_scaffold.dart';
@@ -38,11 +39,11 @@ extension ItemNameExtension on Item {
 }
 
 class DepartmentScreen extends StatefulWidget {
-  final String departmentName;
+  final DepartmentEnum department;
 
   const DepartmentScreen({
     Key? key,
-    required this.departmentName,
+    required this.department,
   }) : super(key: key);
 
   @override
@@ -51,15 +52,16 @@ class DepartmentScreen extends StatefulWidget {
 
 class _DepartmentScreenState extends State<DepartmentScreen> {
   Item selectedItem = Item.about;
+  OverlayEntry? overlayEntry;
+  final GlobalKey _dropDownKey = GlobalKey();
 
   void _showDropDown(BuildContext context) async {
-    Size size = MediaQuery.of(context).size;
     OverlayState overlayState = Overlay.of(context)!;
-    late OverlayEntry? overlayEntry;
+
     overlayEntry = OverlayEntry(builder: (context) {
       return Positioned(
         left: 20,
-        top: size.height * 0.27,
+        top: _getDropdownVerticalPosition(),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           width: 230,
@@ -77,112 +79,147 @@ class _DepartmentScreenState extends State<DepartmentScreen> {
                       setState(() {
                         selectedItem = item;
                       });
-                      overlayEntry!.remove();
+                      overlayEntry?.remove();
+                      overlayEntry = null;
                     }),
             ],
           ),
         ),
       );
     });
-    overlayState.insert(overlayEntry);
+    overlayState.insert(overlayEntry!);
   }
 
   Widget section(Item item) {
     switch (item) {
       case Item.about:
-        return const AboutSection();
+        return AboutSection(department: widget.department.getName);
       case Item.facultyDetails:
-        return FacultyDetailsSection(department: widget.departmentName);
+        return FacultyDetailsSection(department: widget.department);
       default:
-        return const AboutSection();
+        return AboutSection(department: widget.department.getName);
     }
+  }
+
+  double _getDropdownVerticalPosition() {
+    final RenderBox rowRenderBox =
+        _dropDownKey.currentContext?.findRenderObject() as RenderBox;
+    final rowHeight = rowRenderBox.size.height;
+    final rowOffsetTop = rowRenderBox.localToGlobal(Offset.zero).dy;
+    return rowHeight + rowOffsetTop + 10;
+  }
+
+  @override
+  void dispose() {
+    if (overlayEntry != null) {
+      overlayEntry?.remove();
+    }
+
+    overlayEntry = null;
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     Size size = MediaQuery.of(context).size;
-    return CustomScaffold(
-      appBar: const DepartmentScreenAppBar(
-        title: "Department",
-      ),
-      body: SizedBox(
-        width: size.width,
-        child: Column(
-          children: <Widget>[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-              width: size.width,
-              height: 0.18 * size.height,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.secondary,
-                borderRadius:
-                    const BorderRadius.only(bottomRight: Radius.circular(30)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.departmentName,
-                    style: Theme.of(context)
-                        .textTheme
-                        .headline5!
-                        .copyWith(fontSize: 22),
-                  ),
-                  const SizedBox(
-                    height: 20,
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                    width: 230,
-                    height: 38,
-                    decoration: const BoxDecoration(
-                      color: kLightModeLightBlue,
-                      borderRadius: BorderRadius.all(
-                        Radius.circular(12),
-                      ),
+
+    return WillPopScope(
+      onWillPop: () async {
+        if (overlayEntry != null) {
+          overlayEntry?.remove();
+          overlayEntry = null;
+          return false;
+        }
+        return true;
+      },
+      child: CustomScaffold(
+        appBar: const DepartmentScreenAppBar(title: "Department"),
+        body: SizedBox(
+          width: size.width,
+          child: Column(
+            children: <Widget>[
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                width: size.width,
+                height: 0.18 * size.height,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.secondary,
+                  borderRadius:
+                      const BorderRadius.only(bottomRight: Radius.circular(30)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.department.getName,
+                      style: Theme.of(context)
+                          .textTheme
+                          .headline5!
+                          .copyWith(fontSize: 22),
                     ),
-                    child: Row(
-                      children: [
-                        Text(
-                          selectedItem.name,
-                          style: Theme.of(context)
-                              .textTheme
-                              .button!
-                              .copyWith(color: Colors.white),
+                    const SizedBox(
+                      height: 20,
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 15, vertical: 5),
+                      width: 230,
+                      height: 38,
+                      decoration: const BoxDecoration(
+                        color: kLightModeLightBlue,
+                        borderRadius: BorderRadius.all(
+                          Radius.circular(12),
                         ),
-                        const Spacer(),
-                        const VerticalDivider(
-                          color: Colors.white,
-                          thickness: 1,
-                          indent: 5,
-                          endIndent: 5,
-                          width: 20,
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            _showDropDown(context);
-                          },
-                          child: Transform.rotate(
-                            angle: -90 * pi / 180,
-                            child: const Icon(
-                              Icons.chevron_left,
-                              size: 30,
-                              color: Colors.white,
+                      ),
+                      child: Row(
+                        key: _dropDownKey,
+                        children: [
+                          Text(
+                            selectedItem.name,
+                            style: Theme.of(context)
+                                .textTheme
+                                .button!
+                                .copyWith(color: Colors.white),
+                          ),
+                          const Spacer(),
+                          const VerticalDivider(
+                            color: Colors.white,
+                            thickness: 1,
+                            indent: 5,
+                            endIndent: 5,
+                            width: 20,
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              if (overlayEntry == null) {
+                                _showDropDown(context);
+                              } else {
+                                overlayEntry?.remove();
+                                overlayEntry = null;
+                              }
+                            },
+                            child: Transform.rotate(
+                              angle: -90 * pi / 180,
+                              child: const Icon(
+                                Icons.chevron_left,
+                                size: 30,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            section(selectedItem),
-          ],
+              const SizedBox(
+                height: 10,
+              ),
+              section(selectedItem),
+            ],
+          ),
         ),
       ),
     );

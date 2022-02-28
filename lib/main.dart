@@ -1,9 +1,13 @@
+import 'dart:convert';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tsec_app/screens/main_screen/main_screen.dart';
+import 'package:tsec_app/utils/department_enum.dart';
 
 import 'firebase_options.dart';
 import 'models/notification_model/notification_model.dart';
@@ -36,7 +40,6 @@ Future<void> main() async {
 
   initGetIt();
 
-  WidgetsFlutterBinding.ensureInitialized();
   final _sharedPrefs = await SharedPreferences.getInstance();
   runApp(
     ProviderScope(
@@ -76,6 +79,7 @@ class _TSECAppState extends ConsumerState<TSECApp> {
           builder: (context, state) => const MainScreen(),
           redirect: (_) {
             if (ref.read(appStateProvider).isFirstOpen) return "/theme";
+            return null;
           },
         ),
         GoRoute(
@@ -96,9 +100,11 @@ class _TSECAppState extends ConsumerState<TSECApp> {
         ),
         GoRoute(
           path: "/department",
-          builder: (context, state) => DepartmentScreen(
-            departmentName: state.queryParams["department"] as String,
-          ),
+          builder: (context, state) {
+            final department = DepartmentEnum
+                .values[int.parse(state.queryParams["department"] as String)];
+            return DepartmentScreen(department: department);
+          },
         ),
       ],
       refreshListenable: ref.watch(appStateProvider),
@@ -163,7 +169,7 @@ class _TSECAppState extends ConsumerState<TSECApp> {
             notificationTime: DateTime.parse(
               message.data["notificationTime"] ?? DateTime.now().toString(),
             ),
-            attachments: (message.data["attachments"] as List?)
+            attachments: (jsonDecode(message.data["attachments"]) as List?)
                 ?.map((e) => e as String)
                 .toList(),
           ),
